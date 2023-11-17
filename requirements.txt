@@ -7,3 +7,5 @@ torchvision
 Pillow
 scipy
 clip @ git+https://github.com/openai/CLIP.git
+openi
+GPUtil
