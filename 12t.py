@@ -138,7 +138,7 @@ if __name__ == "__main__":
         exit(1)
     transform = get_transform(image_size=args.image_size)
     print("配置transform成功")
-    #
+    check_model_exist()
     print("正在将模型装载到cuda...")
     model = ram_plus(pretrained=args.pretrained, image_size=args.image_size, vit='swin_l', threshold=args.threshold)
     model.eval()
