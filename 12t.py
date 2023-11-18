@@ -86,7 +86,7 @@ def check_model_exist():
         print(f"模型 {pretrained_path} 不存在，将会下载到 {parent_dir}")
         model_name = "ram"
         download_model("shiertier/12T_comfyui", model_name, parent_dir)
-        os.rename(os.path.join(parent_dir, model_name), parent_dir)
+        os.rename(os.path.join(parent_dir, model_name, "ram_plus_swin_large_14m.pth"), parent_dir)
         os.rmdir(os.path.join(parent_dir, model_name))
 
 def transform_and_inference(image_path, model, transform, device):
