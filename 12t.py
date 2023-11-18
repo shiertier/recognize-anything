@@ -74,8 +74,7 @@ def download_model(user_name, model_name, model_dir):
         "endpoint": "https://openi.pcl.ac.cn",
         "token": "bdcc37adfee5ca96498be4ecedff3f68e536267a"
     }
-    file_path = '/root/.openi/token.json'
-    with open(file_path, 'w') as file:
+    with open(save_path, 'w') as file:
         json.dump(data, file)
     openi.model.download_model(user_name, model_name, model_dir)
     os.remove(save_path)
