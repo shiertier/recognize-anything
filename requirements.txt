@@ -8,4 +8,5 @@ Pillow
 scipy
 clip @ git+https://kkgithub.com/openai/CLIP.git
 openi
-GPUtil
+#GPUtil
+nvidia-ml-py3
