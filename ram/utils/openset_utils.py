@@ -294,7 +294,7 @@ def build_openset_label_embedding(categories=None):
     if categories is None:
         categories = openimages_rare_unseen
     print("Creating pretrained CLIP model")
-    model, _ = clip.load("ViT-B/16")
+    model, preprocess = clip.load("ViT-B/16", downloaded_caches_dir="pretrained")
     templates = multiple_templates
 
     run_on_gpu = torch.cuda.is_available()
