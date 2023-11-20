@@ -3,16 +3,17 @@ import time
 import json
 import torch
 import openi
-import GPUtil
 import argparse
 import numpy as np
 from PIL import Image
 from pathlib import Path
 from ram import get_transform
 from ram.models import ram_plus
-from ram import inference_ram as inference
+from ram import inference_ram_openset as inference
 from concurrent.futures import ThreadPoolExecutor
 from torchvision.transforms import Normalize, Compose, Resize, ToTensor
+from ram.utils import build_openset_llm_label_embedding
+from torch import nn
 
 parser = argparse.ArgumentParser(
     description='识别万物———+————反推提示词')
@@ -20,35 +21,41 @@ parser.add_argument('--image_dir', metavar='DIR', help='path/to/dataset', defaul
 parser.add_argument('--pretrained', metavar='DIR', help='path/to/pretrained_model.pth', default='pretrained/ram_plus_swin_large_14m.pth')
 parser.add_argument('--image-size', default=384, type=int, metavar='N', help='输入图片尺寸，默认384)')
 parser.add_argument('--threshold', default=0.68, type=int, metavar='N', help='阙值，默认0.68')
-
+parser.add_argument('--llm_tag_des',
+                    metavar='DIR',
+                    help='path to LLM tag descriptions',
+                    default='datasets/openimages_rare_200/openimages_rare_200_llm_tag_descriptions.json')
 IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp", ".bmp", ".PNG", ".JPG", ".JPEG", ".WEBP", ".BMP"]
 
+import pynvml
+
 def get_gpu_max_memory(gpu_index=0):
-
-    gpus = GPUtil.getGPUs()
-
-    if gpu_index < len(gpus):
-        max_memory = gpus[gpu_index].memoryTotal
+    pynvml.nvmlInit()
+    device_count = pynvml.nvmlDeviceGetCount()
+    if gpu_index < device_count:
+        handle = pynvml.nvmlDeviceGetHandleByIndex(gpu_index)
+        meminfo = pynvml.nvmlDeviceGetMemoryInfo(handle)
+        max_memory = round(meminfo.total / 1024**3) # 将字节转换为GB并四舍五入到最接近的整数
+        pynvml.nvmlShutdown()
         return max_memory
     else:
         print(f"Error: GPU index {gpu_index} is out of range.")
+        pynvml.nvmlShutdown()
         return None
 
 def check_gpu_max_memory(gpu_index=0):
-    max_memory = get_gpu_max_memory(gpu_index=0)
-    max_memory_gb = max_memory / 1024
-    lock_memory = get_gpu_lock_memory(gpu_index=0)
-    lock_memory_gb = lock_memory / 1024
-    print("你的 GPU 显存为：{} GB".format(max_memory_gb))
+    max_memory = get_gpu_max_memory(gpu_index)
+    lock_memory = get_gpu_lock_memory(gpu_index)
+    print("你的 GPU 显存为：{} GB".format(max_memory))
 
-    if max_memory < 4096:
+    if max_memory < 4:
         print("Warning: Low GPU memory. This may cause issues.")
 
-    print("将会限制 GPU 显存使用低于 {} GB".format(lock_memory_gb))
+    print("将会限制 GPU 显存使用低于 {} GB".format(lock_memory))
 
 def get_gpu_lock_memory(gpu_index=0):
-    max_memory = get_gpu_max_memory(gpu_index=0)
-    lock_memory = min(int(max_memory * 0.8), int(max_memory) - 1024)
+    max_memory = get_gpu_max_memory(gpu_index)
+    lock_memory = min(round(max_memory * 0.8), round(max_memory) - 1) # 取整到最接近的整数
     return lock_memory
 
 def glob_images_pathlib(dir_path):
@@ -140,6 +147,14 @@ if __name__ == "__main__":
     check_model_exist()
     print("正在将模型装载到cuda...")
     model = ram_plus(pretrained=args.pretrained, image_size=args.image_size, vit='swin_l', threshold=args.threshold)
+    #######set openset interference
+    print('Building tag embedding:')
+    with open(args.llm_tag_des, 'rb') as fo:
+        llm_tag_des = json.load(fo)
+    openset_label_embedding, openset_categories = build_openset_llm_label_embedding(llm_tag_des)
+    model.num_class = len(openset_categories)
+    model.class_threshold = torch.ones(model.num_class) * 0.5
+    
     model.eval()
     model = model.to(device)
     print("模型装载到cuda成功")
