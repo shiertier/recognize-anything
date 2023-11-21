@@ -124,7 +124,6 @@ def process_images_in_directory(dir_path, model, transform, device, lock_memory)
 
     with ThreadPoolExecutor() as executor:
         for image_path in image_paths:
-            gpu = GPUtil.getGPUs()[0]
             if gpu.memoryUsed < lock_memory:
                 executor.submit(process_single_image, image_path, model, transform, device)
             else:
