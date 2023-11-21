@@ -146,15 +146,18 @@ def process_single_image(image_path, model, transform, device, houzhui):
 def process_images_in_directory(dir_path, model, transform, device, lock_memory, houzhui):
     image_paths = glob_images_pathlib(dir_path)
     with ThreadPoolExecutor() as executor:
-        for image_path in image_paths:
-            use_memory = get_gpu_use_memory()
-            if use_memory < lock_memory:
-                executor.submit(process_single_image, image_path, model, transform, device, houzhui)
-            else:
-                time.sleep(5)
-        executor.shutdown(wait=True)
-        completed_tasks, _ = concurrent.futures.wait(executor._threads, return_when=concurrent.futures.ALL_COMPLETED)
-        del model
+        try:
+            for image_path in image_paths:
+                use_memory = get_gpu_use_memory()
+                if use_memory < lock_memory:
+                    executor.submit(process_single_image, image_path, model, transform, device, houzhui)
+                else:
+                    time.sleep(5)
+        except Exception as e:
+            print(f"An error occurred: {e}")
+        finally:
+            executor.shutdown(wait=True)  # Wait for all tasks to complete
+            del model  # Clean up the model
     print("所有图像已提交处理。")
 
 def model_1(image_dir, transform, device, lock_memory):
@@ -197,4 +200,4 @@ if __name__ == "__main__":
     check_model_exist()
     image_dir = Path(args.image_dir)
     model_1(image_dir, transform, device, lock_memory)
-    model_2(image_dir, transform, device, lock_memory)
+    #model_2(image_dir, transform, device, lock_memory)
